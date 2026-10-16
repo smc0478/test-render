@@ -1,9 +1,9 @@
 /*
- * 구조체에서 스키마에 노출할 필드와 타입별 스키마 선언을 준비하는 파일.
- * - SchemaFieldDesc 전방 선언: 필드 이름, 타입, 실제 offset을 정의할 자리.
- * - SchemaTraits<T> 전방 선언: 데이터 타입과 스키마 정의를 연결할 자리.
- * - DEFINE_STRUCT_SCHEM(Type, (fields...)) 매크로는 이 파일에 구현할 예정이다.
- * - 현재는 전방 선언만 있으며 필드 메타데이터 생성과 매크로는 미구현이다.
+ * 구조체 스키마. 기존 C++ 구조체에 DEFINE_STRUCT_SCHEM(Type, (fields...)) 한 줄로 노출 필드만 지정한다.
+ * - 있는 것: SchemaFieldDesc, SchemaTraits<T> 전방 선언.
+ * - 필요: SchemaFieldDesc(이름, 타입, offset), 기본형 SchemaTraits 특수화, DEFINE_STRUCT_SCHEM
+ *   (등록은 그래프가 포트를 모을 때), standard-layout static_assert.
+ * - 범위: SDK 공개.
  */
 #pragma once
 

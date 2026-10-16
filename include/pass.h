@@ -1,30 +1,35 @@
 /*
- * 그래프 안의 Pass와 다음 Pass로 이어지는 연결 정보를 정의하는 파일.
- * - IrEdge: 다음 Pass 포인터와 입력 필드 이름 → 출력 필드 이름의 대응표.
- * - PassWrap: 현재 GraphIr 포인터와 다음 Pass로 향하는 연결 목록.
- * - 현재는 저장 구조의 초안이며 연결 관리와 실행 처리는 미구현이다.
+ * 모든 Pass가 상속하는 베이스(GraphIr). 그래프가 Pass의 구체 타입을 몰라도 실행·필드 조회를 하게 한다.
+ * (원래 graph-ir.h — 내용이 Pass 베이스라 pass.h로 변경, 기존 pass.h는 pass-node.h로)
+ * - 있는 것: GraphIr(execute, id, 이름별 inputs/outputs 필드 맵), 필드 등록 함수 선언.
+ * - 필요: 등록 함수 인자·접근 수준(PassField가 호출), 이름으로 필드 찾기, execute(PassContext&),
+ *   가상 소멸자. 역할상 클래스 이름은 Pass가 더 맞을 수 있음.
+ * - 범위: SDK 공개. 구현: src/pass.cc
  */
 #pragma once
 
-#include "graph-ir.h"
 #include <unordered_map>
-#include <vector>
 #include <string>
+
 
 namespace RD {
 
-struct IrEdge {
-    PassWrap *nextPass;
+class PassFieldBase;  // Forward Declaration
 
-    // key   = nextIr의 Input 필드
-    // value = currentIr의 Output 필드
-    std::unordered_map<std::string, std::string> inoutMap;
-};
+class Pass {
+public:
 
-class PassWrap {
+    virtual void execute() = 0;
+    void registerField(std::string name, PassFieldBase *field);
+
+    PassFieldBase *findInput(const std::string &name) const;
+    PassFieldBase *findOutput(const std::string &name) const;
+    size_t inputCount() const { return inputs.size(); }
+
 private:
-    GraphIr *currentIr;
-    std::vector<IrEdge> edges;
+    int id;
+    std::unordered_map<std::string, PassFieldBase*> inputs;
+    std::unordered_map<std::string, PassFieldBase*> outputs;
 };
 
 }

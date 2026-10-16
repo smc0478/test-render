@@ -1,60 +1,59 @@
 /*
- * Pass와 입출력 연결을 조립하는 그래프 빌더의 선언을 모은 파일.
- * - Endpoint: 그래프 입력, 그래프 출력, Pass 필드의 종류와 이름을 표현.
- * - Edge: 연결의 출발점과 도착점을 보관.
- * - GraphBuilder: Pass, 연결, 외부 입출력의 저장 공간과 추가 API 선언.
- * - validate, compile: 위상 정렬을 포함한 검증 및 컴파일의 구현 예정 위치.
- * - 그래프 입출력의 자료형과 각 API의 구현은 아직 완성하지 않았다.
+ * 그래프 조립 API. 호스트와 GraphPass 플러그인이 같은 API로 Pass를 추가하고 필드를 연결한다.
+ * - 있는 것: Endpoint(Pass 인덱스 + 필드), Edge, GraphBuilder(Pass를 추가 순서 인덱스로 보관,
+ *   addPass·connect·compile).
+ * - 필요: 그래프 입력/출력(Endpoint 종류), 실패 이유를 담는 Result 반환,
+ *   addPass는 pass-registry로 생성(6번), compile의 bind.
+ * - 범위: SDK 공개. 구현: src/graph-builder.cc
  */
-#ifndef _GRAPH_BUILDER_H_
-#define _GRAPH_BUILDER_H_
+#pragma once
 
-#include "graph-ir.h"
-#include "schema.h"
-
+#include <memory>
 #include <unordered_map>
 #include <string>
 #include <vector>
 
+#include "pass.h"
+#include "schema.h"
+#include "graph.h"
+
 namespace RD {
 
-class Endpoint {
-public:
-    enum class Kind {
-        GraphInput,
-        GraphOutput,
-        GraphField
-    };
-private:
-    Kind kind;
-    std::string passName;
-    std::string fieldName;
+// 연결 한쪽 끝. pass는 GraphBuilder::passList 인덱스.
+// TODO: 그래프 입력/출력 종류는 외부 입력이 생길 때, 하위 필드는 스키마(5번 이후)
+struct Endpoint {
+    size_t pass;
+    std::string field;
 };
 
-class Edge {
-public:
-private:
+struct Edge {
     Endpoint src;
     Endpoint dst;
 };
 
 class GraphBuilder {
 public:
-    void addPass();
-    void connect();
-    void addInput();
-    void addOutput();
-    // must topological sort
-    void validate();
-    void compile();
+    bool addPass(const std::string& name, Pass *pass);
+    bool connect(const std::string& src, const std::string& dst);
+    // 위상 정렬과 입력 검사 후 실행 그래프를 만든다. 실패하면 nullptr.
+    std::unique_ptr<Graph> compile();
 private:
-    std::unordered_map<std::string, GraphIr*> passes;
+    static constexpr size_t npos = static_cast<size_t>(-1);
+
+    inline size_t findPass(const std::string& name) const {
+        auto it = passIndex.find(name);
+        if(it != passIndex.end())
+            return it->second;
+        return npos;
+    }
+
+    std::vector<Pass*> passList;                         // addPass 순서 = 인덱스
+    std::vector<std::string> passNames;                  // 같은 인덱스의 이름(오류·dump용)
+    std::unordered_map<std::string, size_t> passIndex;   // 이름 → 인덱스
     std::vector<Edge> edges;
 
-    std::unordered_map<std::string, > inputs;
-    std::unordered_map<std::string, > outputs;
+    //std::unordered_map<std::string, > inputs;
+    //std::unordered_map<std::string, > outputs;
 };
 
 }
-
-#endif // graph-builder.h
