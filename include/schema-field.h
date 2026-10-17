@@ -3,6 +3,7 @@
  * - SchemaTraits<T>: T의 스키마. 선언하지 않은 타입은 노출 필드 없는 opaque 스키마(크기·정렬만).
  * - 기본형: bool, int32, uint32, float32.
  * - DEFINE_STRUCT_SCHEM(Type, (a, b)): 노출 필드 a, b와 실제 offset. 노출 필드는 최대 16개.
+ *   키를 직접 정하려면 DEFINE_NAMED_STRUCT_SCHEM(Type, "core.Albedo", (tex)).
  * - DEFINE_OPAQUE_SCHEM(Type, "key"): 노출 필드 없이 이름만 붙인다(핸들 타입 등).
  * - 두 매크로는 전역 네임스페이스에서 쓴다. 실제 등록은 그래프가 포트를 모을 때 한다.
  * - 범위: SDK 공개.
@@ -75,17 +76,19 @@ RD_BASIC_SCHEM(float, "float32")
                                   RD_SCHEM_FE_5, RD_SCHEM_FE_4, RD_SCHEM_FE_3, RD_SCHEM_FE_2,     \
                                   RD_SCHEM_FE_1)(M, T, __VA_ARGS__))
 
-#define DEFINE_STRUCT_SCHEM(Type, fields)                                                   \
+#define DEFINE_NAMED_STRUCT_SCHEM(Type, Key, fields)                                        \
     template <>                                                                             \
     struct RD::SchemaTraits<Type> {                                                         \
         static_assert(std::is_standard_layout_v<Type>, #Type " must be standard-layout");   \
         static const ::RD::SchemaDesc &desc() {                                             \
             static const ::RD::SchemaDesc d(                                                \
-                #Type, sizeof(Type), alignof(Type),                                         \
+                Key, sizeof(Type), alignof(Type),                                           \
                 {RD_SCHEM_FOR_EACH(RD_SCHEM_FIELD, Type, RD_SCHEM_UNPAREN fields)});        \
             return d;                                                                       \
         }                                                                                   \
     };
+
+#define DEFINE_STRUCT_SCHEM(Type, fields) DEFINE_NAMED_STRUCT_SCHEM(Type, #Type, fields)
 
 #define DEFINE_OPAQUE_SCHEM(Type, Key)                                                      \
     template <>                                                                             \

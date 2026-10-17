@@ -232,6 +232,7 @@ struct FakeContext : public RD::PassContext {
         lastCleared = target;
     }
     void blit(RD::Texture, RD::Texture) override {}
+    void blitTo(RD::Texture, RD::Texture, RD::Rect) override {}
 };
 
 struct MakeTexture : public RD::Pass {
