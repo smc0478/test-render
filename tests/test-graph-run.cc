@@ -9,6 +9,9 @@
  */
 #include "graph-builder.h"
 #include "graph.h"
+#include "pass-context.h"
+
+#include <cstdint>
 #include "test-passes.h"
 #include "test.h"
 
@@ -182,6 +185,87 @@ void multipleProducersFail() {
     CHECK(!built);
 }
 
+// 그래프 입력은 바깥 데이터를 bind해서 쓰고, 그래프 출력은 이름으로 읽는다.
+void graphInputAndOutput() {
+    RD::GraphBuilder g;
+    AddOne a;
+    g.addPass("a", &a);
+    CHECK(g.addInput<int>("seed"));
+    CHECK(g.connectInput("seed", "a.in"));
+    CHECK(g.exportOutput("result", "a.out"));
+
+    auto graph = g.compile();
+    CHECK(graph);
+    if(!graph) {
+        return;
+    }
+    CHECK(!graph->inputsBound());
+    int seed = 41;
+    CHECK(graph->bindInput("seed", &seed));
+    CHECK(graph->inputsBound());
+    graph->execute();
+    CHECK_EQ(*graph->output<int>("result"), 42);
+}
+
+void graphInputTypeMismatchFails() {
+    RD::GraphBuilder g;
+    AddOne a;
+    g.addPass("a", &a);
+    g.addInput<float>("f");
+    CHECK(!g.connectInput("f", "a.in"));
+    CHECK(!g.connectInput("missing", "a.in"));
+}
+
+// GPU 없이 prepare → record 흐름 확인: prepare에서 만든 핸들이 다음 Pass의 record로 전달된다.
+struct FakeContext : public RD::PassContext {
+    int created = 0;
+    int cleared = 0;
+    RD::Texture lastCleared;
+    uint32_t width() const override { return 4; }
+    uint32_t height() const override { return 4; }
+    RD::Texture createTexture(RD::Format, uint32_t, uint32_t) override {
+        ++created;
+        return RD::Texture{reinterpret_cast<RD::GpuImage *>(static_cast<uintptr_t>(created))};
+    }
+    void clear(RD::Texture target, float, float, float, float) override {
+        ++cleared;
+        lastCleared = target;
+    }
+    void blit(RD::Texture, RD::Texture) override {}
+};
+
+struct MakeTexture : public RD::Pass {
+    DECL_FIELD_OUT(RD::Texture, color);
+    void prepare(RD::PassContext &ctx) override { *color = ctx.createTexture(RD::Format::RGBA8, 4, 4); }
+};
+
+struct ClearTexture : public RD::Pass {
+    DECL_FIELD_IN(RD::Texture, color);
+    void record(RD::PassContext &ctx) override { ctx.clear(*color, 0, 0, 0, 1); }
+};
+
+void prepareThenRecord() {
+    RD::GraphBuilder g;
+    MakeTexture make;
+    ClearTexture clear;
+    g.addPass("clear", &clear);
+    g.addPass("make", &make);
+    g.connect("make.color", "clear.color");
+
+    auto graph = g.compile();
+    CHECK(graph);
+    if(!graph) {
+        return;
+    }
+    FakeContext ctx;
+    graph->prepare(ctx);
+    graph->record(ctx);
+    graph->record(ctx);
+    CHECK_EQ(ctx.created, 1);
+    CHECK_EQ(ctx.cleared, 2);
+    CHECK(ctx.lastCleared.image == reinterpret_cast<RD::GpuImage *>(uintptr_t(1)));
+}
+
 } // namespace
 
 int main() {
@@ -194,5 +278,8 @@ int main() {
     RUN(missingInputFails);
     RUN(unusedOutputIsAllowed);
     RUN(multipleProducersFail);
+    RUN(graphInputAndOutput);
+    RUN(graphInputTypeMismatchFails);
+    RUN(prepareThenRecord);
     return TEST_RESULT();
 }

@@ -10,6 +10,8 @@ function(rd_add_test name)
 endfunction()
 
 rd_add_test(test-pass-field)     # 1번: 필드 등록
-rd_add_test(test-pass-data)      # 2번: bind로 데이터 접근 (bind 구현 후)
+rd_add_test(test-pass-data)      # 2번: bind로 데이터 접근
 rd_add_test(test-graph-builder)  # 3번: addPass, connect
-rd_add_test(test-graph-run)      # 4번: compile, CPU 실행
+rd_add_test(test-graph-run)      # 4번: compile, CPU 실행, 그래프 입출력, prepare → record
+rd_add_test(test-schema)         # 5번: 스키마, 타입 검사, 하위 필드 연결
+rd_add_test(test-registry)       # 6·7번: 등록부, GraphPass 전개

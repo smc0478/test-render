@@ -1,11 +1,16 @@
 /*
- * - TODO: PassField<T, D> 에 schema 데이터 필요 (size/align도 schema에서)
+ * Pass의 입출력 필드(포트)와 선언 매크로. DECL_FIELD_IN/OUT 한 줄로 포트를 만들고 소유 Pass에 자동 등록한다.
+ * - PassFieldBase: 이름, 방향, 스키마(크기·정렬 포함), 데이터 포인터(void*). compile이 T를 몰라도 bind한다.
+ * - PassField<T, D>: 입력은 const T(읽기 전용), 출력은 T. 날 메모리에 T를 얹으므로 trivially copyable만.
+ * - 범위: SDK 공개.
  */
 #pragma once
 
 #include <string>
 #include <type_traits>
+
 #include "pass.h"
+#include "schema-field.h"
 
 namespace RD {
 
@@ -20,24 +25,24 @@ public:
         return _direction;
     }
     const std::string& name() const { return _name; }
-    size_t size() const { return _size; }
-    size_t align() const { return _align; }
+    const SchemaDesc &schema() const { return *_schema; }
+    size_t size() const { return _schema->size(); }
+    size_t align() const { return _schema->align(); }
 
     // compile이 T를 몰라도 저장 공간을 연결할 수 있게 void*로 받는다.
     void bind(void *data) { _data = data; }
+    void *data() const { return _data; }
 
 protected:
-    PassFieldBase(std::string name, PassFieldDirection direction, size_t size, size_t align)
-        : _name(std::move(name)), _direction(direction), _size(size), _align(align) {}
+    PassFieldBase(std::string name, PassFieldDirection direction, const SchemaDesc *schema)
+        : _name(std::move(name)), _direction(direction), _schema(schema) {}
 
     void *_data = nullptr;
 
 private:
     std::string _name;
     PassFieldDirection _direction;
-    size_t _size;
-    size_t _align;
-    size_t offset;
+    const SchemaDesc *_schema;
 };
 
 template <typename T, PassFieldDirection D>
@@ -49,7 +54,7 @@ public:
     using Value = std::conditional_t<D == PassFieldDirection::Input, const T, T>;
 
     PassField(Pass *base, std::string name)
-        : PassFieldBase(std::move(name), D, sizeof(T), alignof(T)) {
+        : PassFieldBase(std::move(name), D, &SchemaTraits<T>::desc()) {
         base->registerField(this->name(), this);
     }
 

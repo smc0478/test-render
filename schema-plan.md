@@ -6,8 +6,8 @@
 
 | 파일 | 역할 |
 | --- | --- |
-| `include/schema.h` | 공통 `SchemaDesc`, 기본 타입 descriptor, 스키마 등록부 |
-| `include/schema-field.h` | 노출 필드 정보, `SchemaTraits<T>`, `DEFINE_STRUCT_SCHEM` |
+| `include/schema.h` | 공통 `SchemaDesc`, 노출 필드 정보(`SchemaFieldDesc`), 호환성·경로 조회, 스키마 등록부 |
+| `include/schema-field.h` | `SchemaTraits<T>`(기본형·opaque), `DEFINE_STRUCT_SCHEM`, `DEFINE_OPAQUE_SCHEM` |
 | `src/schema.cc` | 스키마·필드 등록과 조회 구현 |
 
 기존 `schema.h`의 클래스들은 작성 중인 초안으로 유지한다. 등록부는 현재 `Schema`를 사용하고, 별도 등록부·컴파일러 파일은 만들지 않는다.

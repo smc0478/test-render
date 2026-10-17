@@ -18,7 +18,9 @@ endif()
 # 1단계 코어: 기초 타입, Pass·필드, GraphBuilder(최소 컴파일 포함).
 add_library(rd-graph STATIC
     src/core.cc
+    src/schema.cc
     src/pass.cc
+    src/pass-registry.cc
     src/graph-builder.cc
 )
 target_include_directories(rd-graph PUBLIC include)
